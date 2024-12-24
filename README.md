@@ -1,50 +1,35 @@
-# React + TypeScript + Vite
+# React Mapbox Waypoint Manager
+A React application that leverages Mapbox GL to manage waypoints interactively. Users can add, drag, delete, and visualize markers on a map, with features like real-time path updates, zoom controls, and a dynamic coordinate display.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Features
+Add Waypoints:
 
-Currently, two official plugins are available:
+Place markers on the map by clicking in "Placing Mode."
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Drag Waypoints:
 
-## Expanding the ESLint configuration
+Switch to "Dragging Mode" to move markers around the map.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+Delete Waypoints:
 
-- Configure the top-level `parserOptions` property like this:
+Right-click on a marker to display a delete button and remove it.
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+Dynamic Path Visualization:
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+A polyline dynamically connects all waypoints in the order they were added.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+Toggle Coordinate Display:
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+View the latitude and longitude of all waypoints in a list.
+
+Map Navigation Controls:
+
+Includes zoom and compass controls for enhanced map navigation.
+
+Marker Styling:
+
+Different marker styles based on the current interaction mode:
+
+White for Placing Mode.
+
+Blue for Dragging Mode with a glow effect when being moved.
