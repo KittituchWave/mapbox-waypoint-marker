@@ -4,65 +4,87 @@ import Map, {
   Source,
   Layer,
   LayerProps,
+  MapMouseEvent, // Updated type from MapLayerMouseEvent to MapMouseEvent
   MarkerDragEvent,
-  MapLayerMouseEvent,
+  NavigationControl,
 } from "react-map-gl";
-import { Pointer, Move, List } from "lucide-react"; // Import Lucide icons
-import "mapbox-gl/dist/mapbox-gl.css";
+import { Edit, Move, List, Trash2 } from "lucide-react"; // Import icons for UI controls
+import "mapbox-gl/dist/mapbox-gl.css"; // Import Mapbox styles
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN; // Use your Mapbox token
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN; // Use your Mapbox token (stored in .env file)
 
+// Define the Waypoint type for markers
 type Waypoint = {
-  id: number;
-  latitude: number;
-  longitude: number;
+  id: number; // Unique ID for each marker
+  latitude: number; // Latitude of the marker
+  longitude: number; // Longitude of the marker
 };
 
-const WaypointMap: React.FC = () => {
-  const [waypoints, setWaypoints] = useState<Waypoint[]>([]); // Start with no markers
-  const [isPlacingMode, setIsPlacingMode] = useState<boolean>(true); // Toggle state for placing vs dragging mode
-  const [showCoordinates, setShowCoordinates] = useState<boolean>(false); // Toggle for coordinate box visibility
-  const [draggingMarkerId, setDraggingMarkerId] = useState<number | null>(null); // Track the marker being dragged
+const MapView: React.FC = () => {
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([]); // Markers
+  const [isPlacingMode, setIsPlacingMode] = useState<boolean>(true); // Mode toggle
+  const [showCoordinates, setShowCoordinates] = useState<boolean>(false); // Toggle coordinates
+  const [draggingMarkerId, setDraggingMarkerId] = useState<number | null>(null); // Track dragging marker
+  const [popupMarkerId, setPopupMarkerId] = useState<number | null>(null); // Marker with visible delete button
 
-  // Add a new marker when the map is clicked
-  const handleMapClick = (event: MapLayerMouseEvent) => {
+  // Add a new marker at the clicked position (only in Placing Mode)
+  const handleMapClick = (event: MapMouseEvent) => {
+    // Updated type here
     if (isPlacingMode) {
-      const { lng, lat } = event.lngLat; // Extract longitude and latitude
+      const { lng, lat } = event.lngLat; // Get latitude and longitude from the click event
       const newWaypoint: Waypoint = {
-        id: waypoints.length + 1, // Increment ID
+        id: waypoints.length + 1, // Assign a unique ID based on the current number of markers
         latitude: lat,
         longitude: lng,
       };
-      setWaypoints((prev) => [...prev, newWaypoint]);
+      setWaypoints((prev) => [...prev, newWaypoint]); // Add the new marker to the list
     }
   };
 
-  // Update marker position during drag (real-time)
+  // Update marker position during dragging
   const handleDrag = (id: number, event: MarkerDragEvent) => {
     setWaypoints((prev) =>
-      prev.map((waypoint) =>
-        waypoint.id === id
-          ? {
-              ...waypoint,
-              latitude: event.lngLat.lat,
-              longitude: event.lngLat.lng,
-            }
-          : waypoint
+      prev.map(
+        (waypoint) =>
+          waypoint.id === id
+            ? {
+                ...waypoint,
+                latitude: event.lngLat.lat, // Update latitude
+                longitude: event.lngLat.lng, // Update longitude
+              }
+            : waypoint // Keep other markers unchanged
       )
     );
   };
 
-  // Set marker as being dragged
+  // Mark a marker as being dragged
   const handleDragStart = (id: number) => {
-    setDraggingMarkerId(id);
+    setDraggingMarkerId(id); // Set the ID of the marker being dragged
   };
 
-  // Clear dragging state
+  // Stop tracking drag state after dragging ends
   const handleDragEnd = () => {
-    setDraggingMarkerId(null);
+    setDraggingMarkerId(null); // Clear the dragging state
   };
 
-  // GeoJSON object for the polyline
+  // Show delete button when right-clicking a marker
+  const handleMarkerContextMenu = (id: number, event: React.MouseEvent) => {
+    event.preventDefault(); // Prevent the browser's default right-click menu
+    setPopupMarkerId(id); // Show the delete button for the right-clicked marker
+  };
+
+  // Delete a marker and renumber the remaining markers
+  const deleteMarker = (id: number) => {
+    setWaypoints(
+      (prev) =>
+        prev
+          .filter((waypoint) => waypoint.id !== id) // Remove the marker with the given ID
+          .map((waypoint, index) => ({ ...waypoint, id: index + 1 })) // Renumber remaining markers sequentially
+    );
+    setPopupMarkerId(null); // Hide the delete button after deletion
+  };
+
+  // GeoJSON data for the polyline connecting the markers
   const geojson = {
     type: "FeatureCollection",
     features: [
@@ -70,36 +92,37 @@ const WaypointMap: React.FC = () => {
         type: "Feature",
         geometry: {
           type: "LineString",
-          coordinates: waypoints.map((wp) => [wp.longitude, wp.latitude]),
+          coordinates: waypoints.map((wp) => [wp.longitude, wp.latitude]), // Connect markers in sequence
         },
       },
     ],
   };
 
-  // Layer style for the polyline
+  // Style for the polyline
   const lineLayerStyle: LayerProps = {
-    id: "flight-path",
-    type: "line",
+    id: "flight-path", // Unique ID for the polyline layer
+    type: "line", // Line type
     paint: {
-      "line-color": "#00bcd4",
-      "line-width": 4,
+      "line-color": "#00bcd4", // Cyan color for the line
+      "line-width": 4, // Line thickness
     },
   };
 
   return (
     <div className="w-full h-screen relative">
+      {/* Main Map Component */}
       <Map
         initialViewState={{
-          latitude: 13.7563, // Center on Bangkok
-          longitude: 100.5018,
-          zoom: 16,
+          latitude: 13.7563, // Initial latitude (Bangkok center)
+          longitude: 100.5018, // Initial longitude (Bangkok center)
+          zoom: 16, // Initial zoom level
         }}
-        mapStyle="mapbox://styles/mapbox/satellite-v9"
-        mapboxAccessToken={MAPBOX_TOKEN}
-        style={{ width: "100%", height: "100%" }}
-        onClick={handleMapClick} // Add marker on click
+        mapStyle="mapbox://styles/mapbox/satellite-v9" // Mapbox satellite style
+        mapboxAccessToken={MAPBOX_TOKEN} // Access token for Mapbox API
+        style={{ width: "100%", height: "100%" }} // Fullscreen map
+        onClick={handleMapClick} // Handle map clicks to add markers
       >
-        {/* Draw the polyline */}
+        {/* Polyline connecting markers */}
         <Source id="flight-path" type="geojson" data={geojson}>
           <Layer {...lineLayerStyle} />
         </Source>
@@ -110,29 +133,53 @@ const WaypointMap: React.FC = () => {
             key={waypoint.id}
             latitude={waypoint.latitude}
             longitude={waypoint.longitude}
-            draggable={!isPlacingMode} // Allow dragging only in drag mode
-            onDragStart={() => handleDragStart(waypoint.id)} // Start dragging
-            onDrag={(event) => handleDrag(waypoint.id, event)} // Update path during drag
-            onDragEnd={handleDragEnd} // End dragging
+            draggable={!isPlacingMode} // Allow dragging only in Dragging Mode
+            onDragStart={() => handleDragStart(waypoint.id)} // Handle drag start
+            onDrag={(event) => handleDrag(waypoint.id, event)} // Handle dragging
+            onDragEnd={handleDragEnd} // Handle drag end
           >
+            {/* Marker content */}
             <div
-              className={`w-6 h-6 flex items-center justify-center rounded-full border-2 ${
+              onContextMenu={(event) =>
+                handleMarkerContextMenu(waypoint.id, event)
+              } // Show delete button on right-click
+              className={`w-8 h-8 flex items-center justify-center rounded-full border-2 ${
                 draggingMarkerId === waypoint.id
-                  ? "border-blue-500 bg-blue-200 shadow-lg shadow-blue-500/50" // Glow effect
-                  : "border-black bg-white"
+                  ? "border-blue-700 bg-blue-600 shadow-lg shadow-blue-500/50" // Glow effect when dragging
+                  : isPlacingMode
+                  ? "border-black bg-white" // White marker in Placing Mode
+                  : "border-blue-600 bg-blue-100" // Blue marker in Dragging Mode
               } ${isPlacingMode ? "cursor-not-allowed" : "cursor-grab"}`}
             >
-              {waypoint.id}
+              <span className="text-xs font-bold text-black">
+                {waypoint.id} {/* Display marker ID */}
+              </span>
             </div>
+
+            {/* Delete button (visible for the selected marker) */}
+            {popupMarkerId === waypoint.id && (
+              <div
+                className="absolute top-10 left-4 flex items-center bg-red-500 text-white p-1 rounded shadow-lg cursor-pointer"
+                onClick={() => deleteMarker(waypoint.id)}
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> {/* Trash icon */}
+                Delete
+              </div>
+            )}
           </Marker>
         ))}
+
+        {/* Map Navigation Control (Zoom and Compass) */}
+        <div className="absolute top-4 right-4">
+          <NavigationControl />
+        </div>
       </Map>
 
-      {/* UI Buttons */}
+      {/* UI Controls */}
       <div className="absolute top-4 left-4 flex space-x-4">
         {/* Toggle Mode Button */}
         <button
-          onClick={() => setIsPlacingMode(!isPlacingMode)} // Toggle placing/dragging mode
+          onClick={() => setIsPlacingMode(!isPlacingMode)} // Toggle between Placing and Dragging Mode
           className={`p-3 rounded-lg shadow-md ${
             isPlacingMode
               ? "bg-blue-500 hover:bg-blue-600"
@@ -140,26 +187,26 @@ const WaypointMap: React.FC = () => {
           }`}
         >
           {isPlacingMode ? (
-            <Pointer className="text-white w-6 h-6" /> // Place mode icon
+            <Move className="text-white w-6 h-6" /> // Move icon for Placing Mode
           ) : (
-            <Move className="text-white w-6 h-6" /> // Drag mode icon
+            <Edit className="text-white w-6 h-6" /> // Edit (Pen) icon for Dragging Mode
           )}
         </button>
 
         {/* Clear All Markers Button */}
         <button
-          onClick={() => setWaypoints([])} // Clear markers and polyline
+          onClick={() => setWaypoints([])} // Clear all markers
           className="p-3 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600"
         >
           Clear
         </button>
 
-        {/* Show Coordinates Button */}
+        {/* Toggle Coordinate Box Button */}
         <button
-          onClick={() => setShowCoordinates(!showCoordinates)} // Toggle coordinate box
+          onClick={() => setShowCoordinates(!showCoordinates)} // Show/Hide coordinate box
           className="p-3 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600"
         >
-          <List className="text-white w-6 h-6" />
+          <List className="text-white w-6 h-6" /> {/* List icon */}
         </button>
       </div>
 
@@ -183,4 +230,4 @@ const WaypointMap: React.FC = () => {
   );
 };
 
-export default WaypointMap;
+export default MapView;
