@@ -4,20 +4,19 @@ import Map, {
   Source,
   Layer,
   LayerProps,
-  MapMouseEvent, // Updated type from MapLayerMouseEvent to MapMouseEvent
+  MapMouseEvent,
   MarkerDragEvent,
   NavigationControl,
 } from "react-map-gl";
-import { Edit, Move, List, Trash2 } from "lucide-react"; // Import icons for UI controls
-import "mapbox-gl/dist/mapbox-gl.css"; // Import Mapbox styles
+import { Edit, Move, List, Trash2 } from "lucide-react";
+import "mapbox-gl/dist/mapbox-gl.css";
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN; // Use your Mapbox token (stored in .env file)
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-// Define the Waypoint type for markers
 type Waypoint = {
-  id: number; // Unique ID for each marker
-  latitude: number; // Latitude of the marker
-  longitude: number; // Longitude of the marker
+  id: number;
+  latitude: number;
+  longitude: number;
 };
 
 const MapView: React.FC = () => {
@@ -26,51 +25,68 @@ const MapView: React.FC = () => {
   const [showCoordinates, setShowCoordinates] = useState<boolean>(false); // Toggle coordinates
   const [draggingMarkerId, setDraggingMarkerId] = useState<number | null>(null); // Track dragging marker
   const [popupMarkerId, setPopupMarkerId] = useState<number | null>(null); // Marker with visible delete button
+  const [modeMessage, setModeMessage] = useState<string | null>(null); // Temporary mode message
+
+  // Show a temporary message when switching modes
+  const showModeMessage = (message: string) => {
+    setModeMessage(message);
+    setTimeout(() => setModeMessage(null), 3000); // Hide after 3 seconds
+  };
+
+  // Toggle between Placing Mode and Dragging Mode
+  const toggleMode = () => {
+    const newMode = !isPlacingMode;
+    setIsPlacingMode(newMode);
+    showModeMessage(newMode ? "Placing Mode" : "Dragging Mode"); // Show mode message
+  };
 
   // Add a new marker at the clicked position (only in Placing Mode)
   const handleMapClick = (event: MapMouseEvent) => {
-    // Updated type here
+    // Reset the popupMarkerId when clicking on the map
+    setPopupMarkerId(null);
+
     if (isPlacingMode) {
-      const { lng, lat } = event.lngLat; // Get latitude and longitude from the click event
+      const { lng, lat } = event.lngLat;
       const newWaypoint: Waypoint = {
-        id: waypoints.length + 1, // Assign a unique ID based on the current number of markers
+        id: waypoints.length + 1,
         latitude: lat,
         longitude: lng,
       };
-      setWaypoints((prev) => [...prev, newWaypoint]); // Add the new marker to the list
+      setWaypoints((prev) => [...prev, newWaypoint]);
     }
   };
 
   // Update marker position during dragging
   const handleDrag = (id: number, event: MarkerDragEvent) => {
     setWaypoints((prev) =>
-      prev.map(
-        (waypoint) =>
-          waypoint.id === id
-            ? {
-                ...waypoint,
-                latitude: event.lngLat.lat, // Update latitude
-                longitude: event.lngLat.lng, // Update longitude
-              }
-            : waypoint // Keep other markers unchanged
+      prev.map((waypoint) =>
+        waypoint.id === id
+          ? {
+              ...waypoint,
+              latitude: event.lngLat.lat, // Update latitude
+              longitude: event.lngLat.lng, // Update longitude
+            }
+          : waypoint
       )
     );
   };
 
   // Mark a marker as being dragged
   const handleDragStart = (id: number) => {
-    setDraggingMarkerId(id); // Set the ID of the marker being dragged
+    setDraggingMarkerId(id);
   };
 
   // Stop tracking drag state after dragging ends
   const handleDragEnd = () => {
-    setDraggingMarkerId(null); // Clear the dragging state
+    setDraggingMarkerId(null);
   };
 
-  // Show delete button when right-clicking a marker
+  // Show or hide the delete button when right-clicking a marker
   const handleMarkerContextMenu = (id: number, event: React.MouseEvent) => {
-    event.preventDefault(); // Prevent the browser's default right-click menu
-    setPopupMarkerId(id); // Show the delete button for the right-clicked marker
+    event.preventDefault(); // Prevent the default right-click menu
+
+    // Toggle the delete button for the right-clicked marker
+    setPopupMarkerId((prev) => (prev === id ? null : id));
   };
 
   // Delete a marker and renumber the remaining markers
@@ -100,8 +116,8 @@ const MapView: React.FC = () => {
 
   // Style for the polyline
   const lineLayerStyle: LayerProps = {
-    id: "flight-path", // Unique ID for the polyline layer
-    type: "line", // Line type
+    id: "flight-path",
+    type: "line",
     paint: {
       "line-color": "#00bcd4", // Cyan color for the line
       "line-width": 4, // Line thickness
@@ -142,7 +158,7 @@ const MapView: React.FC = () => {
             <div
               onContextMenu={(event) =>
                 handleMarkerContextMenu(waypoint.id, event)
-              } // Show delete button on right-click
+              } // Show or hide delete button on right-click
               className={`w-8 h-8 flex items-center justify-center rounded-full border-2 ${
                 draggingMarkerId === waypoint.id
                   ? "border-blue-700 bg-blue-600 shadow-lg shadow-blue-500/50" // Glow effect when dragging
@@ -179,17 +195,17 @@ const MapView: React.FC = () => {
       <div className="absolute top-4 left-4 flex space-x-4">
         {/* Toggle Mode Button */}
         <button
-          onClick={() => setIsPlacingMode(!isPlacingMode)} // Toggle between Placing and Dragging Mode
+          onClick={toggleMode} // Toggle between Placing and Dragging Mode
           className={`p-3 rounded-lg shadow-md ${
             isPlacingMode
-              ? "bg-blue-500 hover:bg-blue-600"
-              : "bg-gray-500 hover:bg-gray-600"
+              ? "bg-orange-500 hover:bg-orange-600"
+              : "bg-blue-500 hover:bg-blue-600"
           }`}
         >
           {isPlacingMode ? (
-            <Move className="text-white w-6 h-6" /> // Move icon for Placing Mode
+            <Edit className="text-white w-6 h-6" /> // Pen icon for Placing Mode
           ) : (
-            <Edit className="text-white w-6 h-6" /> // Edit (Pen) icon for Dragging Mode
+            <Move className="text-white w-6 h-6" /> // Move icon for Dragging Mode
           )}
         </button>
 
@@ -224,6 +240,13 @@ const MapView: React.FC = () => {
           ) : (
             <p className="text-sm text-gray-500">No markers available.</p>
           )}
+        </div>
+      )}
+
+      {/* Mode Notification */}
+      {modeMessage && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded shadow-lg">
+          {modeMessage}
         </div>
       )}
     </div>
