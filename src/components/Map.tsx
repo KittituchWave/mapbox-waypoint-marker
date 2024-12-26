@@ -135,6 +135,7 @@ const MapView: React.FC = () => {
         }}
         mapStyle="mapbox://styles/mapbox/satellite-v9" // Mapbox satellite style
         mapboxAccessToken={MAPBOX_TOKEN} // Access token for Mapbox API
+        projection={{ name: 'globe' }} // Enable globe projection
         style={{ width: "100%", height: "100%" }} // Fullscreen map
         onClick={handleMapClick} // Handle map clicks to add markers
       >
